@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>TiltMaze 3D</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: #060810;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    font-family: 'Share Tech Mono', monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  #three-container {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+  #hud {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 28px 0;
+    pointer-events: none;
+  }
+  #title {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 300;
+    font-size: 1.05rem;
+    letter-spacing: 0.55em;
+    color: #a8c8f0;
+    text-transform: uppercase;
+  }
+  #title span { color: #3a5a80; font-size: 0.6rem; display: block; letter-spacing: 0.3em; margin-top: 1px; }
+  #timer-box {
+    text-align: right;
+  }
+  #timer {
+    font-size: 1.4rem;
+    letter-spacing: 0.18em;
+    color: #a8c8f0;
+    line-height: 1;
+  }
+  #timer.won { color: #7ef7a0; }
+  #status {
+    font-size: 0.5rem;
+    letter-spacing: 0.2em;
+    color: #2a3a55;
+    margin-top: 3px;
+    text-transform: uppercase;
+  }
+  #bottom-hud {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 28px 20px;
+    pointer-events: none;
+  }
+  #hint {
+    font-size: 0.5rem;
+    letter-spacing: 0.18em;
+    color: #1e2a3a;
+    text-transform: uppercase;
+    line-height: 1.8;
+  }
+  #controls {
+    display: flex;
+    gap: 10px;
+    pointer-events: all;
+  }
+  .btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    color: #4a7aaa;
+    background: #060810;
+    border: 1px solid #1a2a3a;
+    padding: 7px 14px;
+    cursor: pointer;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    transition: border-color 0.2s, color 0.2s;
+    border-radius: 2px;
+  }
+  .btn:hover { border-color: #4a7aaa; color: #a8c8f0; }
+  #gyro-btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem;
+    color: #f7c87e;
+    background: #060810;
+    border: 1px solid #3a2a1a;
+    padding: 7px 14px;
+    cursor: pointer;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    border-radius: 2px;
+    display: none;
+    pointer-events: all;
+  }
+  #win-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(6,8,16,0);
+    pointer-events: none;
+    transition: background 1.2s;
+  }
+  #win-overlay.show {
+    background: rgba(6,8,16,0.82);
+    pointer-events: all;
+  }
+  #win-text {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 300;
+    font-size: clamp(2.5rem, 8vw, 4.5rem);
+    letter-spacing: 0.45em;
+    color: #7ef7a0;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.7s 0.4s, transform 0.7s 0.4s;
+    text-transform: uppercase;
+  }
+  #win-time {
+    font-size: 0.9rem;
+    letter-spacing: 0.3em;
+    color: #3a5a50;
+    opacity: 0;
+    margin-top: 8px;
+    transition: opacity 0.7s 0.7s;
+  }
+  #win-overlay.show #win-text,
+  #win-overlay.show #win-time { opacity: 1; transform: translateY(0); }
+  #new-btn-win {
+    margin-top: 28px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    color: #4a7aaa;
+    background: transparent;
+    border: 1px solid #1a2a3a;
+    padding: 9px 22px;
+    cursor: pointer;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0;
+    border-radius: 2px;
+    transition: opacity 0.5s 1s, border-color 0.2s, color 0.2s;
+  }
+  #win-overlay.show #new-btn-win { opacity: 1; }
+  #new-btn-win:hover { border-color: #4a7aaa; color: #a8c8f0; }
+
+  #menu-overlay {
+    position: fixed; inset: 0; z-index: 30;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #060810; gap: 20px;
+  }
+  #menu-overlay.hide { display: none; }
+  #menu-title {
+    font-family: 'Rajdhani', sans-serif; font-weight: 300;
+    font-size: 2rem; letter-spacing: 0.5em; color: #a8c8f0;
+    text-transform: uppercase; text-align: center;
+  }
+  #menu-title span { display:block; font-size:0.6rem; letter-spacing:0.3em; color:#3a5a80; margin-top:8px; }
+  .menu-btn {
+    font-family: 'Share Tech Mono', monospace; font-size: 0.7rem;
+    color: #4a7aaa; background: transparent; border: 1px solid #1a2a3a;
+    padding: 12px 30px; cursor: pointer; letter-spacing: 0.2em;
+    text-transform: uppercase; border-radius: 2px; min-width: 240px;
+  }
+  .menu-btn:hover { border-color: #4a7aaa; color: #a8c8f0; }
+  .menu-btn.primary { border-color: #2a5a40; color: #7ef7a0; }
+  .menu-btn.primary:hover { border-color: #7ef7a0; }
+  #remote-status { font-size: 0.5rem; letter-spacing: 0.15em; color: #2a3a55; text-transform: uppercase; }
+  #remote-status.ok { color: #7ef7a0; }
+  #menu-overlay { overflow-y: auto; padding: 24px; }
+  #remote-status { color: #91a7c2; max-width: 430px; text-align: center; line-height: 1.7; font-size: 0.7rem; }
+  #remote-panel {
+    position: fixed; top: 78px; left: 20px; z-index: 21;
+    width: min(320px, calc(100vw - 40px)); padding: 12px;
+    color: #a8c8f0; background: rgba(6,8,16,0.94);
+    border: 1px solid #263b53; border-radius: 6px; font-size: 0.72rem;
+  }
+  #remote-panel summary { cursor: pointer; line-height: 1.6; }
+  #remote-live-status { color: #91a7c2; line-height: 1.5; margin: 10px 0; }
+  #remote-live-status.ok { color: #7ef7a0; }
+  .remote-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  #remote-panel label { display: block; margin-top: 12px; }
+  #remote-panel input[type=range] { width: 100%; margin-top: 6px; }
+  #remote-readout { display: block; margin: 12px 0; color: #f7c87e; }
+  #remote-panel small { display: block; line-height: 1.6; color: #91a7c2; margin-top: 12px; }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button:focus-visible, summary:focus-visible { outline: 2px solid #7ef7a0; outline-offset: 3px; }
+  #hint { color: #91a7c2; }
+  @media (max-width: 600px) {
+    #hud { padding: 16px; }
+    #bottom-hud { padding: 0 16px 16px; gap: 12px; }
+    #controls { flex-wrap: wrap; justify-content: flex-end; }
+  }
+</style>
+<style>
+  :root { --mint: #7ef7c5; --ink: #a8c8f0; }
+  .btn, .menu-btn { color: #b5cde8; border-color: #35506e; font-size: .72rem; letter-spacing: .06em; }
+  .btn { min-height: 38px; }
+  #menu-overlay { display: block; padding: 32px 20px; background: radial-gradient(ellipse at top, #132b3e, #060810 65%); }
+  #menu-overlay.hide { display: none; }
+  .lobby { max-width: 850px; margin: auto; color: var(--ink); }
+  .eyebrow { color: var(--mint); text-transform: uppercase; letter-spacing: .22em; font-size: .7rem; margin-bottom: 12px; }
+  #menu-title { text-align: left; font-size: clamp(2.4rem, 7vw, 4rem); letter-spacing: .12em; font-weight: 500; }
+  .intro { max-width: 600px; line-height: 1.7; color: #a5b5ca; margin: 14px 0 24px; font-size: .85rem; }
+  .lobby-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .card { background: #0c1420; border: 1px solid #263b53; padding: 22px; border-radius: 16px; }
+  .card h2 { font-family: 'Rajdhani', sans-serif; font-size: 1.5rem; margin-bottom: 14px; }
+  .field { display: block; margin-bottom: 16px; font-size: .78rem; line-height: 1.8; }
+  .field input, .field select { display: block; width: 100%; margin-top: 4px; padding: 10px; background: #060d16; border: 1px solid #35506e; border-radius: 6px; color: #d6e6f8; font: inherit; }
+  .menu-btn { min-width: 0; width: 100%; margin-top: 10px; border-radius: 8px; }
+  .menu-btn.primary { background: #173f37; color: #b8ffdf; }
+  #remote-status { margin: 12px 0 0; text-align: left; text-transform: none; letter-spacing: 0; }
+  .muted { color: #99adc5; line-height: 1.65; font-size: .75rem; }
+  .leader-list { list-style: none; margin: 14px 0; }
+  .leader-list li { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #223448; font-size: .78rem; }
+  .leader-list strong { color: var(--mint); white-space: nowrap; }
+  #score-hud { display: flex; gap: 22px; align-items: center; }
+  .metric-label { display: block; font-size: .6rem; color: #9fb3cc; letter-spacing: .12em; margin-bottom: 5px; }
+  #score-value { color: var(--mint); font-size: 1.5rem; }
+  #status { color: #a8c8f0; font-size: .65rem; letter-spacing: .03em; }
+  #timer.urgent { color: #ffc68a; }
+  #route-hud { position: fixed; top: 84px; right: 24px; width: 210px; z-index: 10; color: var(--ink); background: #0a1320e8; padding: 12px; border-radius: 8px; font-size: .7rem; }
+  #route-progress { width: 100%; accent-color: var(--mint); margin: 8px 0; }
+  #checkpoint-message { min-height: 2.5em; color: var(--mint); line-height: 1.5; }
+  #win-overlay { display: none; z-index: 40; padding: 24px; background: #060810dc; overflow-y: auto; }
+  #win-overlay.show { display: flex; background: #060810ed; }
+  .result-card { width: min(480px, 100%); margin: auto; text-align: center; color: var(--ink); }
+  #win-text { font-size: clamp(2rem, 7vw, 3rem); letter-spacing: .04em; opacity: 1; transform: none; }
+  #win-time { opacity: 1; color: #b4c6dd; font-size: .85rem; letter-spacing: 0; line-height: 1.7; }
+  #result-stars { font-size: 2.4rem; letter-spacing: .2em; color: #ffd58c; margin-bottom: 14px; }
+  #result-score { font-size: 2.6rem; color: var(--mint); margin: 18px 0 4px; }
+  #result-message { margin: 14px 0; }
+  #ready-overlay, #pause-overlay { position: fixed; inset: 0; z-index: 35; display: grid; place-items: center; background: #060810b8; text-align: center; color: #d6e6f8; padding: 24px; }
+  #ready-overlay[hidden], #pause-overlay[hidden], [hidden] { display: none !important; }
+  #remote-panel.during-pause { z-index: 36; }
+  #ready-number { font-size: 6rem; color: var(--mint); }
+  #pause-overlay .card { max-width: 410px; }
+  #confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  #confetti i { position: absolute; top: -20px; width: 8px; height: 16px; background: var(--mint); animation: celebrate 2.8s ease-out forwards; }
+  @keyframes celebrate { to { transform: translateY(110vh) rotate(540deg); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } #confetti { display: none; } }
+  @media (max-width: 600px) {
+    .lobby-grid { grid-template-columns: 1fr; }
+    #hud { align-items: flex-start; }
+    #title { font-size: .8rem; letter-spacing: .18em; }
+    #score-hud { gap: 14px; }
+    #route-hud { top: 132px; right: 16px; width: 180px; }
+    #remote-panel { top: 75px; left: 16px; max-height: 65vh; overflow: auto; }
+    #hint { display: none; }
+    #controls { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div id="three-container"></div>
+
+<div id="menu-overlay">
+  <main class="lobby">
+    <p class="eyebrow">Small moves. Real achievements.</p>
+    <h1 id="menu-title">TiltMaze<span>THE BALANCE CHALLENGE</span></h1>
+    <p class="intro">Find your rhythm. Collect three checkpoints, reach the glowing diamond, and build your personal best. Every finish counts.</p>
+    <div class="lobby-grid">
+      <section class="card">
+        <h2>Your next challenge</h2>
+        <label class="field">Player nickname<input id="player-name" maxlength="20" value="Player" autocomplete="off"></label>
+        <label class="field">Course<select id="course-select"><option value="0">01 · First steps</option><option value="1">02 · Find your flow</option><option value="2">03 · The winding way</option></select></label>
+        <label class="field">Your pace<select id="mode-select"><option value="gentle">Gentle challenge · 5 minutes</option><option value="standard">Classic challenge · 3 minutes</option><option value="sprint">Quick challenge · 2 minutes</option><option value="practice">Free practice · no time limit</option></select></label>
+        <button class="menu-btn primary" onclick="startGame()">▶ Start challenge</button>
+        <button class="menu-btn" id="connect-btn" onclick="connectRemote()">Connect USB remote</button>
+        <div id="remote-status" role="status">Mouse / touch ready · remote optional</div>
+      </section>
+      <section class="card">
+        <h2>Local scoreboard</h2>
+        <p class="muted" id="leader-context"></p>
+        <ol class="leader-list" id="leader-list"></ol>
+        <p id="personal-best" class="muted"></p>
+        <p class="muted">100 points per checkpoint + 1,000 for finishing. Timed finishes earn up to 500 bonus points.</p>
+        <p class="muted" style="margin-top:12px">Same course, same maze. Your best finish per nickname is shown. Saved only in this browser.</p>
+        <p id="storage-note" class="muted" role="status"></p>
+      </section>
+    </div>
+  </main>
+</div>
+
+<details id="remote-panel">
+  <summary>USB remote · <span id="remote-summary">offline</span></summary>
+  <div id="remote-live-status" role="status">Mouse / touch control active</div>
+  <div class="remote-actions">
+    <button class="btn" id="remote-connect-btn" onclick="connectRemote()">connect</button>
+    <button class="btn" id="calibrate-btn" onclick="calibrateRemote()" disabled>center remote</button>
+    <button class="btn" id="disconnect-btn" onclick="disconnectRemote()" disabled>disconnect</button>
+  </div>
+  <output id="remote-readout">Roll — · Pitch —</output>
+  <label for="tilt-range">Full tilt at <span id="tilt-range-label">30</span>° (lower = faster)</label>
+  <input id="tilt-range" type="range" min="10" max="60" step="5" value="30">
+  <label><input id="swap-axes" type="checkbox"> Swap roll / pitch</label>
+  <label><input id="invert-roll" type="checkbox"> Reverse left / right</label>
+  <label><input id="invert-pitch" type="checkbox"> Reverse forward / back</label>
+  <small>Connect the ESP32 with a USB data cable. Close Arduino Serial Monitor first. Keep it still during startup calibration, then hold comfortably and press Center remote. Use Chrome or Edge on desktop via localhost or HTTPS.</small>
+</details>
+
+<div id="hud">
+  <div id="title">TiltMaze<span>3D Simulation</span></div>
+  <div id="score-hud">
+  <div><span class="metric-label">SCORE</span><strong id="score-value">0</strong></div>
+  <div id="timer-box">
+    <span class="metric-label" id="timer-label">TIME LEFT</span>
+    <div id="timer">00:00</div>
+    <div id="status">roll the ball to ◆</div>
+  </div>
+  </div>
+</div>
+<div id="route-hud"><span id="course-label">Course 01</span><progress id="route-progress" max="100" value="0" aria-label="Furthest route progress"></progress><div id="progress-label">Route progress · 0%</div><div id="checkpoint-message" role="status">Reach the glowing diamond.</div></div>
+
+<div id="bottom-hud">
+  <div id="hint">
+    desktop · move cursor to tilt<br>
+    mobile · tilt your device
+  </div>
+  <div id="controls">
+    <button id="gyro-btn" onclick="requestGyro()">▸ gyro</button>
+    <button class="btn" id="pause-btn" onclick="pauseGame()">Ⅱ pause</button>
+    <button class="btn" onclick="retryGame()">↺ retry course</button>
+    <button class="btn" onclick="showMenu()">menu</button>
+  </div>
+</div>
+
+<div id="ready-overlay" hidden><div><p>Find your neutral position</p><div id="ready-number" role="status">3</div><p>Small, steady movements. You’re ready.</p></div></div>
+<div id="pause-overlay" hidden><div class="card"><h2>Take your time</h2><p class="muted" id="pause-message">Your timer is paused. Resume whenever you’re ready.</p><button class="menu-btn primary" onclick="resumeGame()">Resume</button><button class="menu-btn" onclick="showMenu()">Back to menu</button></div></div>
+<div id="win-overlay" role="dialog" aria-modal="true" aria-labelledby="win-text">
+  <div id="confetti" aria-hidden="true"></div>
+  <div class="card result-card">
+    <div id="result-stars" aria-label="Achievement stars"></div>
+    <h2 id="win-text">Course complete!</h2>
+    <div id="result-score"></div><p class="muted" id="result-breakdown"></p>
+    <div id="win-time"></div><p class="muted" id="result-message"></p>
+    <button class="menu-btn primary" id="next-course-btn" onclick="nextCourse()">Next course</button>
+    <button class="menu-btn primary" id="practice-btn" onclick="continuePractice()" hidden>Keep going · untimed practice</button>
+    <button class="menu-btn" onclick="retryGame()">Try this course again</button>
+    <button class="menu-btn" onclick="showMenu()">View scoreboard / menu</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── Scene setup ───────────────────────────────────────────
+const W = window.innerWidth, H = window.innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(W, H);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x060810);
+document.getElementById('three-container').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x060810, 0.022);
+
+const camera = new THREE.PerspectiveCamera(42, W/H, 0.1, 200);
+camera.position.set(22, 22, 22);
+camera.lookAt(0, 0, 0);
+
+// ── Lighting ──────────────────────────────────────────────
+const ambient = new THREE.AmbientLight(0x1a2a40, 1.2);
+scene.add(ambient);
+
+const sun = new THREE.DirectionalLight(0xc8deff, 2.8);
+sun.position.set(8, 20, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 60;
+sun.shadow.camera.left = sun.shadow.camera.bottom = -20;
+sun.shadow.camera.right = sun.shadow.camera.top = 20;
+sun.shadow.bias = -0.0005;
+scene.add(sun);
+
+const fill = new THREE.DirectionalLight(0x203050, 1.2);
+fill.position.set(-8, 6, -6);
+scene.add(fill);
+
+const rim = new THREE.PointLight(0x4488cc, 1.8, 35);
+rim.position.set(-5, 12, -8);
+scene.add(rim);
+
+// ── Maze parameters ───────────────────────────────────────
+const COLS = 9, ROWS = 9;
+const CELL   = 2.0;
+const W_THICK= 0.15;
+const W_H    = 0.55;
+const FLOOR_H= 0.12;
+
+// Materials
+const floorMat = new THREE.MeshStandardMaterial({
+  color: 0x0d1525, roughness: 0.85, metalness: 0.15
+});
+const wallMat = new THREE.MeshStandardMaterial({
+  color: 0x3a6090, roughness: 0.4, metalness: 0.6,
+  envMapIntensity: 0.5
+});
+const baseMat = new THREE.MeshStandardMaterial({
+  color: 0x0a1020, roughness: 0.9, metalness: 0.05
+});
+const exitMat = new THREE.MeshStandardMaterial({
+  color: 0x1a3a5a, roughness: 0.6, metalness: 0.3,
+  emissive: 0x0a2a40, emissiveIntensity: 0.8
+});
+const ballMat = new THREE.MeshStandardMaterial({
+  color: 0xb8d0e8, roughness: 0.1, metalness: 0.85
+});
+
+// ── Maze generation ───────────────────────────────────────
+let mazeWalls = [];
+function buildMaze(seed = 104729) {
+  const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  mazeWalls = Array.from({length: ROWS}, () =>
+    Array.from({length: COLS}, () => ({T:true, R:true, B:true, L:true}))
+  );
+  const visited = Array.from({length: ROWS}, () => Array(COLS).fill(false));
+  const dirs = [
+    {dr:-1,dc:0,w:'T',ow:'B'},
+    {dr:0,dc:1,w:'R',ow:'L'},
+    {dr:1,dc:0,w:'B',ow:'T'},
+    {dr:0,dc:-1,w:'L',ow:'R'}
+  ];
+  function shuffle(a){ const b=[...a]; for(let i=b.length-1;i>0;i--){const j=0|random()*(i+1);[b[i],b[j]]=[b[j],b[i]]} return b; }
+  function carve(r,c){
+    visited[r][c]=true;
+    for(const {dr,dc,w,ow} of shuffle(dirs)){
+      const nr=r+dr,nc=c+dc;
+      if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&!visited[nr][nc]){
+        mazeWalls[r][c][w]=false; mazeWalls[nr][nc][ow]=false; carve(nr,nc);
+      }
+    }
+  }
+  carve(0,0);
+}
+
+// ── Board group ───────────────────────────────────────────
+let board = new THREE.Group();
+scene.add(board);
+
+const BW = COLS * CELL;
+const BH = ROWS * CELL;
+
+function buildBoard() {
+  // Clear only geometry children, preserve ball and light refs
+  const persistent = new Set([ballMesh, exitLight, rod, joint, cross, cross2, baseDisc]);
+  const sharedMaterials = new Set([floorMat, wallMat, baseMat, exitMat, ballMat, rodMat, jointMat]);
+  const disposed = new Set();
+  for (const child of [...board.children]) {
+    if (!persistent.has(child)) {
+      if (child.geometry && !disposed.has(child.geometry)) { child.geometry.dispose(); disposed.add(child.geometry); }
+      if (child.material && !sharedMaterials.has(child.material)) child.material.dispose();
+    }
+    board.remove(child);
+  }
+
+  // Base slab
+  const baseGeo = new THREE.BoxGeometry(BW + 0.6, 0.4, BH + 0.6);
+  const base = new THREE.Mesh(baseGeo, baseMat);
+  base.position.y = -0.2 - FLOOR_H;
+  base.receiveShadow = true;
+  board.add(base);
+
+  // Floor
+  const floorGeo = new THREE.BoxGeometry(BW, FLOOR_H, BH);
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.position.y = -FLOOR_H / 2;
+  floor.receiveShadow = true;
+  board.add(floor);
+
+  // Exit cell highlight
+  const exGeo = new THREE.BoxGeometry(CELL - 0.05, 0.04, CELL - 0.05);
+  const exitCell = new THREE.Mesh(exGeo, exitMat);
+  exitCell.position.set(
+    -BW/2 + (COLS-0.5)*CELL,
+    0.02,
+    -BH/2 + (ROWS-0.5)*CELL
+  );
+  board.add(exitCell);
+
+  // Exit diamond marker (flat)
+  const dGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.06, 4);
+  const dMesh = new THREE.Mesh(dGeo, new THREE.MeshStandardMaterial({
+    color: 0x5aaaf0, emissive: 0x2a6a9a, emissiveIntensity: 1.2,
+    roughness: 0.2, metalness: 0.7
+  }));
+  dMesh.position.set(
+    -BW/2 + (COLS-0.5)*CELL,
+    0.06,
+    -BH/2 + (ROWS-0.5)*CELL
+  );
+  dMesh.rotation.y = Math.PI / 4;
+  board.add(dMesh);
+
+  // Walls
+  const wallGeo_H = new THREE.BoxGeometry(CELL + W_THICK, W_H, W_THICK);
+  const wallGeo_V = new THREE.BoxGeometry(W_THICK, W_H, CELL + W_THICK);
+
+  for(let r = 0; r < ROWS; r++) {
+    for(let c = 0; c < COLS; c++) {
+      const cx = -BW/2 + c*CELL;
+      const cz = -BH/2 + r*CELL;
+      const wl = mazeWalls[r][c];
+
+      if(wl.T) {
+        const m = new THREE.Mesh(wallGeo_H, wallMat);
+        m.position.set(cx + CELL/2, W_H/2, cz);
+        m.castShadow = true; m.receiveShadow = true;
+        board.add(m);
+      }
+      if(wl.L) {
+        const m = new THREE.Mesh(wallGeo_V, wallMat);
+        m.position.set(cx, W_H/2, cz + CELL/2);
+        m.castShadow = true; m.receiveShadow = true;
+        board.add(m);
+      }
+      // Bottom/right borders only for last row/col to avoid duplicates
+      if(r === ROWS-1 && wl.B) {
+        const m = new THREE.Mesh(wallGeo_H, wallMat);
+        m.position.set(cx + CELL/2, W_H/2, cz + CELL);
+        m.castShadow = true; m.receiveShadow = true;
+        board.add(m);
+      }
+      if(c === COLS-1 && wl.R) {
+        const m = new THREE.Mesh(wallGeo_V, wallMat);
+        m.position.set(cx + CELL, W_H/2, cz + CELL/2);
+        m.castShadow = true; m.receiveShadow = true;
+        board.add(m);
+      }
+    }
+  }
+
+  // Re-add ball, exit light and rod parts (cleared above)
+  board.add(ballMesh);
+  board.add(exitLight);
+  board.add(rod);
+  board.add(joint);
+  board.add(cross);
+  board.add(cross2);
+  board.add(baseDisc);
+}
+
+// ── Ball ──────────────────────────────────────────────────
+const BALL_R = 0.32;
+const ballGeo = new THREE.SphereGeometry(BALL_R, 28, 28);
+const ballMesh = new THREE.Mesh(ballGeo, ballMat);
+ballMesh.castShadow = true;
+board.add(ballMesh);
+
+// Ball physics state (in board-local XZ)
+let bx, bz, bvx, bvz;
+function resetBall() {
+  bx  = -BW/2 + CELL * 0.5;
+  bz  = -BH/2 + CELL * 0.5;
+  bvx = bvz = 0;
+  ballMesh.position.set(bx, BALL_R + 0.01, bz);
+}
+
+// ── Physics ───────────────────────────────────────────────
+const GRAV     = 48;
+const FRICTION  = 0.88;
+const BOUNCE    = 0.22;
+const MAX_TILT  = 0.28;
+
+// Check wall collision in maze coords
+function resolveWallPhysics() {
+  // Map bx,bz to cell
+  const col = Math.floor((bx + BW/2) / CELL);
+  const row = Math.floor((bz + BH/2) / CELL);
+
+  for(let r = Math.max(0, row-1); r <= Math.min(ROWS-1, row+1); r++) {
+    for(let c = Math.max(0, col-1); c <= Math.min(COLS-1, col+1); c++) {
+      const wl = mazeWalls[r][c];
+      const cx = -BW/2 + c*CELL;
+      const cz = -BH/2 + r*CELL;
+      // T wall: z = cz, x in [cx, cx+CELL]
+      if(wl.T) segTest(cx, cz, cx+CELL, cz, 'H');
+      if(wl.B) segTest(cx, cz+CELL, cx+CELL, cz+CELL, 'H');
+      if(wl.L) segTest(cx, cz, cx, cz+CELL, 'V');
+      if(wl.R) segTest(cx+CELL, cz, cx+CELL, cz+CELL, 'V');
+    }
+  }
+  // Board boundary
+  const hw = W_THICK/2 + BALL_R;
+  if(bx < -BW/2 + hw) { bx = -BW/2 + hw; if(bvx < 0) bvx *= -BOUNCE; }
+  if(bx >  BW/2 - hw) { bx =  BW/2 - hw; if(bvx > 0) bvx *= -BOUNCE; }
+  if(bz < -BH/2 + hw) { bz = -BH/2 + hw; if(bvz < 0) bvz *= -BOUNCE; }
+  if(bz >  BH/2 - hw) { bz =  BH/2 - hw; if(bvz > 0) bvz *= -BOUNCE; }
+}
+
+function segTest(x1, z1, x2, z2, axis) {
+  // Circle-segment in XZ plane
+  const dx = x2-x1, dz = z2-z1;
+  const len2 = dx*dx + dz*dz;
+  if(len2 < 1e-6) return;
+  let t = ((bx-x1)*dx + (bz-z1)*dz) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const px = x1+t*dx, pz = z1+t*dz;
+  const ex = bx-px, ez = bz-pz;
+  const d = Math.sqrt(ex*ex+ez*ez);
+  const minD = BALL_R + W_THICK/2;
+  if(d < minD && d > 1e-4) {
+    const ov = minD-d, nx = ex/d, nz = ez/d;
+    bx += nx*ov; bz += nz*ov;
+    const dot = bvx*nx + bvz*nz;
+    if(dot < 0) { bvx -= (1+BOUNCE)*dot*nx; bvz -= (1+BOUNCE)*dot*nz; }
+  }
+}
+
+// ── Tilt control ──────────────────────────────────────────
+// Camera sits on the (22,22,22) diagonal looking at the origin, so
+// screen-right maps to world dir (1,0,-1)/√2 and screen-up maps to
+// world dir (-1,0,-1)/√2. Projecting the cursor offset (mx,my) onto
+// those two axes gives the world point the cursor is over; pRoll
+// drives x-acceleration and pPitch drives z-acceleration, so the
+// board must dip toward that same point, not the old (swapped) pair.
+let tRoll = 0, tPitch = 0;
+let pRoll = 0, pPitch = 0;
+
+// ── USB serial remote (ESP32 + MPU6050) ───────────────────
+// One newline-terminated TILT,rollDegrees,pitchDegrees sample at 100 Hz.
+// USB powers the DevKit and carries data through its onboard USB/UART bridge.
+const SERIAL_BAUD_RATE = 115200;
+let remoteConnected = false;
+let serialConnection = null, serialConnecting = false;
+let lastTiltAt = null, connectedAt = 0, remoteStale = false;
+let latestTilt = null, neutralTilt = null;
+let fullTiltDegrees = 30, swapAxes = false, invertRoll = false, invertPitch = false;
+const REMOTE_TIMEOUT_MS = 500;
+const REMOTE_STARTUP_TIMEOUT_MS = 8000; // Opening a DevKit port may reset it.
+
+function remoteStatus(message, ok = false) {
+  for (const id of ['remote-status', 'remote-live-status']) {
+    const el = document.getElementById(id);
+    el.textContent = message;
+    el.classList.toggle('ok', ok);
+  }
+}
+
+function updateRemoteButtons() {
+  const closing = !!serialConnection?.closing;
+  for (const id of ['connect-btn', 'remote-connect-btn']) {
+    const el = document.getElementById(id);
+    el.disabled = serialConnecting || remoteConnected || closing;
+    el.textContent = closing ? 'disconnecting…' : serialConnecting ? 'connecting…' : remoteConnected ? 'USB connected' : 'connect USB remote';
+  }
+  document.getElementById('disconnect-btn').disabled = !serialConnection?.port || closing;
+  document.getElementById('calibrate-btn').disabled = !remoteConnected || !latestTilt || remoteStale;
+  document.getElementById('remote-summary').textContent = closing ? 'disconnecting' : serialConnecting ? 'connecting' : remoteConnected ? (remoteStale ? 'signal lost' : latestTilt ? 'receiving' : 'waiting for sensor') : 'offline';
+}
+
+function neutralizeRemote() {
+  tRoll = tPitch = pRoll = pPitch = 0;
+  bvx = bvz = 0;
+}
+
+async function connectRemote() {
+  if (serialConnection || serialConnecting || remoteConnected) return;
+  if (!window.isSecureContext) {
+    remoteStatus('USB serial needs HTTPS or localhost. See REMOTE_SETUP.md.');
+    return;
+  }
+  if (!navigator.serial) {
+    remoteStatus('Web Serial is unavailable. Open this game directly in desktop Chrome or Edge.');
+    return;
+  }
+  const session = { port: null, reader: null, readTask: null, openTask: null, closeTask: null,
+    opened: false, closing: false, line: '', droppingLine: false, decoder: new TextDecoder() };
+  serialConnection = session;
+  serialConnecting = true;
+  updateRemoteButtons();
+  try {
+    remoteStatus('Select the ESP32 USB serial / COM port. Close Serial Monitor first.');
+    // Do not filter by a single USB vendor: DevKits use several USB/UART chips.
+    const port = await navigator.serial.requestPort();
+    if (session !== serialConnection || session.closing) return;
+    session.port = port;
+    session.onDisconnect = () => { void disconnectRemote('USB cable disconnected. Reconnect it, then Connect USB remote.'); };
+    port.addEventListener('disconnect', session.onDisconnect);
+    updateRemoteButtons();
+    session.openTask = port.open({ baudRate: SERIAL_BAUD_RATE, dataBits: 8, stopBits: 1, parity: 'none', flowControl: 'none' })
+      .then(() => { session.opened = true; });
+    await session.openTask;
+    if (session !== serialConnection || session.closing) return;
+    if (!port.readable) throw new Error('The selected port has no readable stream.');
+    remoteConnected = true;
+    serialConnecting = false;
+    connectedAt = performance.now();
+    neutralizeRemote();
+    remoteStatus('USB open · keep the remote still while it calibrates (about 4 seconds). Waiting for tilt data…');
+    updateRemoteButtons();
+    if (typeof renderLeaderboard === 'function') renderLeaderboard();
+    session.readTask = readSerial(session);
+    // Close outside the read task: disconnectRemote waits for its lock to release.
+    void session.readTask.then(message => {
+      if (session === serialConnection && !session.closing) void disconnectRemote(message);
+    });
+  } catch (err) {
+    if (session !== serialConnection || session.closing) return;
+    await disconnectRemote(err.name === 'NotFoundError'
+      ? 'No USB port selected. Plug in a USB data cable and try again.'
+      : 'USB connection failed: ' + err.message + ' Close Serial Monitor / other tabs, then retry.');
+  }
+}
+
+async function readSerial(session) {
+  try {
+    session.reader = session.port.readable.getReader();
+    while (!session.closing && session === serialConnection) {
+      const { value, done } = await session.reader.read();
+      if (done) break;
+      if (session.closing || session !== serialConnection) break;
+      consumeSerialChunk(session, value);
+    }
+    return 'USB stream ended. Check the cable, then Connect USB remote again.';
+  } catch (err) {
+    return 'USB read interrupted: ' + err.message + ' Reconnect the remote.';
+  } finally {
+    if (session.reader) { session.reader.releaseLock(); session.reader = null; }
+  }
+}
+
+function disconnectRemote(message = 'USB disconnected · mouse / touch available. Connect USB remote to retry.') {
+  const session = serialConnection;
+  if (!session) return Promise.resolve();
+  if (session.closing) return session.closeTask;
+  session.closing = true;
+  if (typeof pauseGame === 'function') pauseGame('USB remote disconnected. Reconnect, or resume with mouse / touch.');
+  remoteConnected = serialConnecting = false;
+  neutralizeRemote();
+  updateRemoteButtons();
+  session.closeTask = (async () => {
+    let closeError = '';
+    try {
+      if (session.reader) await session.reader.cancel().catch(() => {});
+      if (session.readTask) await session.readTask;
+      if (session.openTask) await session.openTask.catch(() => {});
+      if (session.opened) await session.port.close();
+    } catch (err) { closeError = ' Port close failed: ' + err.message + ' Unplug the cable before retrying.'; }
+    finally {
+      if (session.port && session.onDisconnect) session.port.removeEventListener('disconnect', session.onDisconnect);
+      if (session === serialConnection) {
+        serialConnection = null; remoteStale = false;
+        latestTilt = neutralTilt = lastTiltAt = null;
+        document.getElementById('remote-readout').textContent = 'Roll — · Pitch —';
+        updateRemoteButtons();
+        remoteStatus(message + closeError);
+        if (typeof renderLeaderboard === 'function') renderLeaderboard();
+      }
+    }
+  })();
+  return session.closeTask;
+}
+
+function consumeSerialChunk(session, bytes) {
+  let newest = null;
+  // Bound a partial line and discard oversize records through the next newline.
+  // USB chunks may split one record or contain many records; apply only the newest.
+  for (const ch of session.decoder.decode(bytes, { stream: true })) {
+    if (ch === '\n') {
+      if (!session.droppingLine) {
+        const line = session.line.trim();
+        const match = /^TILT,(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(line);
+        if (match) {
+          const roll = Number(match[1]), pitch = Number(match[2]);
+          if (Number.isFinite(roll) && Number.isFinite(pitch) && Math.abs(roll) <= 180 && Math.abs(pitch) <= 90) newest = {roll, pitch};
+        } else if (line.startsWith('# ERROR')) {
+          session.sensorError = true;
+          newest = null;
+          remoteStatus(line.slice(2) + ' Check wiring, then press ESP32 Reset.');
+        }
+      }
+      session.line = ''; session.droppingLine = false;
+    } else if (!session.droppingLine) {
+      session.line += ch;
+      if (session.line.length > 128) { session.line = ''; session.droppingLine = true; }
+    }
+  }
+  if (newest) onTiltData(newest.roll, newest.pitch);
+}
+
+function angleDifference(angle, center) {
+  return ((angle - center + 540) % 360) - 180;
+}
+
+function applyRemoteTilt() {
+  if (!remoteConnected || !latestTilt || !neutralTilt || remoteStale) return;
+  let r = angleDifference(latestTilt.roll, neutralTilt.roll);
+  let p = angleDifference(latestTilt.pitch, neutralTilt.pitch);
+  if (swapAxes) [r, p] = [p, r];
+  if (invertRoll) r = -r;
+  if (invertPitch) p = -p;
+  // Continuous 1-degree dead zone suppresses small movements at rest.
+  const normalize = degrees => Math.sign(degrees) * Math.min(1, Math.max(0, Math.abs(degrees) - 1) / (fullTiltDegrees - 1));
+  r = normalize(r); p = normalize(p);
+  tRoll  =  (r - p) * MAX_TILT;
+  tPitch = -(r + p) * MAX_TILT;
+}
+
+function calibrateRemote() {
+  if (!remoteConnected || !latestTilt || performance.now() - lastTiltAt > REMOTE_TIMEOUT_MS) return;
+  neutralTilt = { ...latestTilt };
+  neutralizeRemote();
+  remoteStatus('Centered · tilt the remote to roll the ball.', true);
+}
+
+function onTiltData(rollDeg, pitchDeg) {
+  if (!remoteConnected || !Number.isFinite(rollDeg) || !Number.isFinite(pitchDeg) || Math.abs(rollDeg) > 180 || Math.abs(pitchDeg) > 90) return;
+  const firstSample = latestTilt === null;
+  latestTilt = { roll: rollDeg, pitch: pitchDeg };
+  lastTiltAt = performance.now();
+  if (!neutralTilt) neutralTilt = { ...latestTilt };
+  if (remoteStale || firstSample || serialConnection?.sensorError) remoteStatus('Receiving USB tilt · hold comfortably and press Center remote.', true);
+  if (serialConnection) serialConnection.sensorError = false;
+  remoteStale = false;
+  document.getElementById('remote-readout').textContent = `Roll ${rollDeg.toFixed(1)}° · Pitch ${pitchDeg.toFixed(1)}°`;
+  updateRemoteButtons();
+  applyRemoteTilt();
+}
+
+function checkRemoteSignal(now) {
+  const timeout = lastTiltAt === null ? REMOTE_STARTUP_TIMEOUT_MS : REMOTE_TIMEOUT_MS;
+  if (!remoteConnected || remoteStale || now - (lastTiltAt ?? connectedAt) <= timeout) return;
+  remoteStale = true;
+  neutralizeRemote();
+  if (typeof pauseGame === 'function') pauseGame('Remote signal stopped. Check the remote, or disconnect it to use mouse / touch.');
+  remoteStatus('No USB tilt data · game paused. Check cable / sensor and upload the USB firmware, or Disconnect to use mouse.');
+  updateRemoteButtons();
+}
+
+document.getElementById('tilt-range').addEventListener('input', e => {
+  fullTiltDegrees = Number(e.target.value);
+  document.getElementById('tilt-range-label').textContent = fullTiltDegrees;
+  applyRemoteTilt();
+});
+for (const id of ['swap-axes', 'invert-roll', 'invert-pitch']) {
+  document.getElementById(id).addEventListener('change', () => {
+    swapAxes = document.getElementById('swap-axes').checked;
+    invertRoll = document.getElementById('invert-roll').checked;
+    invertPitch = document.getElementById('invert-pitch').checked;
+    applyRemoteTilt();
+  });
+}
+
+let gamePlaying = false;
+function startGame() {
+  beginChallenge();
+}
+
+window.addEventListener('mousemove', e => {
+  if (remoteConnected || e.target.closest?.('button, #remote-panel, #menu-overlay')) return;
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  const mx = (e.clientX - cx) / cx;
+  const my = (cy - e.clientY) / cy;
+  tRoll  =  (mx - my) * MAX_TILT;
+  tPitch = -(mx + my) * MAX_TILT;
+});
+
+// Touch
+window.addEventListener('touchmove', e => {
+  if (remoteConnected || e.target.closest?.('button, #remote-panel, #menu-overlay')) return;
+  e.preventDefault();
+  const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+  const mx = (e.touches[0].clientX - cx) / cx;
+  const my = (cy - e.touches[0].clientY) / cy;
+  tRoll  =  (mx - my) * MAX_TILT;
+  tPitch = -(mx + my) * MAX_TILT;
+}, { passive: false });
+window.addEventListener('touchend', () => { if (!remoteConnected) { tRoll = 0; tPitch = 0; } });
+
+// ── Gyroscope ─────────────────────────────────────────────
+let gyroOn = false;
+function requestGyro() {
+  if(typeof DeviceOrientationEvent !== 'undefined' &&
+     typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(r => {
+      if(r === 'granted') enableGyro();
+    }).catch(()=>{});
+  } else { enableGyro(); }
+}
+function enableGyro() {
+  gyroOn = true;
+  document.getElementById('gyro-btn').style.display = 'none';
+  document.getElementById('hint').innerHTML = 'tilt your device to roll the ball';
+  window.addEventListener('deviceorientation', e => {
+    if(!gyroOn || e.gamma == null || e.beta == null || remoteConnected) return;
+    const gx = Math.max(-1, Math.min(1, e.gamma / 30));
+    const gy = Math.max(-1, Math.min(1, (e.beta - 40) / 30));
+    tRoll  =  (gx - gy) * MAX_TILT;
+    tPitch = -(gx + gy) * MAX_TILT;
+  });
+}
+if(/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+  document.getElementById('gyro-btn').style.display = 'block';
+} else if('DeviceOrientationEvent' in window && /Android|Mobile/.test(navigator.userAgent)) {
+  document.getElementById('gyro-btn').style.display = 'block';
+}
+
+// ── Game state ────────────────────────────────────────────
+let won = false, elapsed = 0;
+// ── Challenge state (milliseconds; independent of render frame rate) ──
+const COURSES = [
+  { name: 'First steps', seed: 104729 },
+  { name: 'Find your flow', seed: 271828 },
+  { name: 'The winding way', seed: 314159 }
+];
+const MODES = { gentle: 300000, standard: 180000, sprint: 120000, practice: 0 };
+const SCORE_KEY = 'tiltmaze.scores.v1';
+let phase = 'menu', courseIndex = 0, runMode = 'gentle', timeBudget = MODES.gentle;
+let segmentStarted = 0, elapsedBeforeSegment = 0, readyEnds = 0;
+let runName = 'Player', runInput = 'pointer', rankingEligible = true;
+let route = [], checkpoints = [], furthestStep = 0, checkpointPoints = 0;
+let scores = [], storageAvailable = true;
+
+const ui = id => document.getElementById(id);
+function inputType() { return remoteConnected ? 'usb' : gyroOn ? 'phone' : 'pointer'; }
+function cleanName(name) { return String(name).trim().slice(0, 20) || 'Player'; }
+function loadScores() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SCORE_KEY) || '[]');
+    scores = Array.isArray(parsed) ? parsed.filter(s => s && typeof s.name === 'string' && s.name.length <= 20 &&
+      Number.isInteger(s.course) && s.course >= 0 && s.course < COURSES.length && Object.hasOwn(MODES, s.mode) &&
+      ['remote', 'usb', 'phone', 'pointer'].includes(s.input) && Number.isInteger(s.score) && s.score >= 1000 && s.score <= 1800 &&
+      Number.isFinite(s.elapsed) && s.elapsed >= 0 && s.elapsed <= 86400000).slice(0, 200) : [];
+  } catch { scores = []; storageAvailable = false; }
+}
+function scoreGroup(course, mode, input) {
+  return scores.filter(s => s.course === course && s.mode === mode && s.input === input)
+    .sort((a, b) => b.score - a.score || a.elapsed - b.elapsed);
+}
+function renderLeaderboard() {
+  const course = Number(ui('course-select').value), mode = ui('mode-select').value;
+  const input = inputType(), name = cleanName(ui('player-name').value);
+  ui('leader-context').textContent = `${COURSES[course].name} · ${mode} · ${input === 'pointer' ? 'mouse / touch' : input}`;
+  const list = ui('leader-list');
+  list.replaceChildren();
+  const group = scoreGroup(course, mode, input);
+  if (!group.length) { const li = document.createElement('li'); li.textContent = 'Your first finish starts the board.'; list.appendChild(li); }
+  group.slice(0, 5).forEach((s, i) => {
+    const li = document.createElement('li'), who = document.createElement('span'), value = document.createElement('strong');
+    who.textContent = `${i + 1}. ${s.name}`; value.textContent = `${s.score} pts · ${fmtTime(s.elapsed)}`;
+    li.append(who, value); list.appendChild(li);
+  });
+  const best = group.find(s => s.name.toLowerCase() === name.toLowerCase());
+  ui('personal-best').textContent = best ? `Your best: ${best.score} points · ${fmtTime(best.elapsed)}` : 'Your next goal: complete this course at your own pace.';
+  ui('storage-note').textContent = storageAvailable ? '' : 'Browser storage unavailable. Scores last for this page session only.';
+}
+function saveFinish(score) {
+  const group = scoreGroup(courseIndex, runMode, runInput);
+  const old = group.find(s => s.name.toLowerCase() === runName.toLowerCase());
+  const improved = !old || score > old.score || (score === old.score && elapsed < old.elapsed);
+  if (!improved) return false;
+  scores = scores.filter(s => !(s.course === courseIndex && s.mode === runMode && s.input === runInput && s.name.toLowerCase() === runName.toLowerCase()));
+  scores.unshift({name: runName, course: courseIndex, mode: runMode, input: runInput, score, elapsed: Math.round(elapsed)});
+  scores = scores.slice(0, 200);
+  try { localStorage.setItem(SCORE_KEY, JSON.stringify(scores)); } catch { storageAvailable = false; }
+  return true;
+}
+
+function buildRoute() {
+  const queue = [[0, 0]], parents = new Map([['0,0', null]]);
+  for (let head = 0; head < queue.length; head++) {
+    const [r, c] = queue[head];
+    for (const [wall, dr, dc] of [['T', -1, 0], ['R', 0, 1], ['B', 1, 0], ['L', 0, -1]]) {
+      const nr = r + dr, nc = c + dc, key = `${nr},${nc}`;
+      if (!mazeWalls[r][c][wall] && nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && !parents.has(key)) {
+        parents.set(key, `${r},${c}`); queue.push([nr, nc]);
+      }
+    }
+  }
+  route = [];
+  for (let key = `${ROWS - 1},${COLS - 1}`; key !== null; key = parents.get(key)) {
+    const [r, c] = key.split(',').map(Number);
+    route.unshift({r, c, x: -BW / 2 + (c + .5) * CELL, z: -BH / 2 + (r + .5) * CELL});
+  }
+  checkpoints = [.25, .5, .75].map(fraction => {
+    const step = Math.floor((route.length - 1) * fraction), point = route[step];
+    const mesh = new THREE.Mesh(new THREE.TorusGeometry(.32, .055, 8, 24), new THREE.MeshStandardMaterial({color: 0xffd58c, emissive: 0x785020, emissiveIntensity: .8}));
+    mesh.rotation.x = Math.PI / 2; mesh.position.set(point.x, .1, point.z); board.add(mesh);
+    return {step, mesh, collected: false};
+  });
+}
+function updateProgress() {
+  const step = route.findIndex(p => Math.hypot(bx - p.x, bz - p.z) < CELL * .43);
+  furthestStep = Math.max(furthestStep, step);
+  for (const checkpoint of checkpoints) {
+    if (!checkpoint.collected && furthestStep >= checkpoint.step) {
+      checkpoint.collected = true; checkpoint.mesh.visible = false; checkpointPoints += 100;
+      const count = checkpoints.filter(c => c.collected).length;
+      ui('checkpoint-message').textContent = `${count}/3 checkpoints · +100! ${['Nice start.', 'You’re building momentum.', 'The finish is ahead.'][count - 1]}`;
+    }
+  }
+  const percent = Math.min(99, Math.floor(100 * furthestStep / (route.length - 1)));
+  ui('route-progress').value = percent;
+  ui('progress-label').textContent = `Route progress · ${percent}%`;
+  ui('score-value').textContent = checkpointPoints;
+}
+function updateClock() {
+  const remaining = Math.max(0, timeBudget - elapsed);
+  ui('timer').textContent = timeBudget ? fmtTime(Math.ceil(remaining / 1000) * 1000) : fmtTime(elapsed);
+  ui('timer-label').textContent = timeBudget ? 'TIME LEFT' : 'PRACTICE TIME';
+  ui('timer').classList.toggle('urgent', timeBudget > 0 && remaining <= 30000 && phase !== 'finished');
+}
+function readyGame() {
+  gamePlaying = false; phase = 'ready'; readyEnds = performance.now() + 3000;
+  ui('ready-overlay').hidden = false; ui('ready-number').textContent = '3';
+  ui('pause-overlay').hidden = true;
+  ui('remote-panel').classList.remove('during-pause');
+  ui('remote-panel').open = false;
+  neutralizeRemote();
+}
+function beginChallenge() {
+  courseIndex = Math.max(0, Math.min(2, Number(ui('course-select').value) || 0));
+  runMode = Object.hasOwn(MODES, ui('mode-select').value) ? ui('mode-select').value : 'gentle';
+  timeBudget = MODES[runMode]; runName = cleanName(ui('player-name').value);
+  runInput = inputType(); rankingEligible = true;
+  ui('menu-overlay').classList.add('hide');
+  ui('remote-panel').open = false;
+  initGame(); readyGame();
+}
+function retryGame() { ui('course-select').value = courseIndex; beginChallenge(); }
+function nextCourse() { ui('course-select').value = (courseIndex + 1) % COURSES.length; beginChallenge(); }
+function showMenu() {
+  phase = 'menu'; gamePlaying = false; neutralizeRemote();
+  ui('remote-panel').classList.remove('during-pause');
+  ui('win-overlay').classList.remove('show'); ui('ready-overlay').hidden = ui('pause-overlay').hidden = true;
+  ui('menu-overlay').classList.remove('hide'); renderLeaderboard();
+}
+function pauseGame(message = 'Your timer is paused. Resume whenever you’re ready.') {
+  if (phase !== 'running' && phase !== 'ready') return;
+  if (phase === 'running') {
+    elapsed = elapsedBeforeSegment + performance.now() - segmentStarted;
+    if (timeBudget && elapsed >= timeBudget) { elapsed = timeBudget; finishChallenge(false); return; }
+    elapsedBeforeSegment = elapsed;
+  }
+  phase = 'paused'; gamePlaying = false; neutralizeRemote(); updateClock();
+  ui('remote-panel').classList.add('during-pause');
+  ui('ready-overlay').hidden = true; ui('pause-overlay').hidden = false; ui('pause-message').textContent = message;
+}
+function resumeGame() {
+  if (phase !== 'paused') return;
+  if (remoteConnected && (remoteStale || lastTiltAt === null || performance.now() - lastTiltAt > REMOTE_TIMEOUT_MS)) {
+    ui('pause-message').textContent = 'Waiting for fresh remote data. You can disconnect the remote to resume with mouse / touch.'; return;
+  }
+  readyGame();
+}
+function continuePractice() {
+  if (phase !== 'timeout') return;
+  runMode = 'practice'; timeBudget = 0; rankingEligible = false;
+  elapsedBeforeSegment = elapsed;
+  ui('win-overlay').classList.remove('show'); updateClock(); readyGame();
+}
+function tickChallenge(now) {
+  if ((phase === 'ready' || phase === 'running') && remoteConnected &&
+      (remoteStale || lastTiltAt === null || now - lastTiltAt > REMOTE_TIMEOUT_MS)) {
+    pauseGame('Waiting for remote data. Check the remote, or disconnect it to use mouse / touch.');
+    return false;
+  }
+  if (phase === 'ready') {
+    ui('ready-number').textContent = String(Math.max(1, Math.ceil((readyEnds - now) / 1000)));
+    if (now < readyEnds) return false;
+    phase = 'running'; gamePlaying = true; segmentStarted = now;
+    ui('ready-overlay').hidden = true;
+    neutralizeRemote(); if (remoteConnected) applyRemoteTilt();
+  }
+  if (phase !== 'running') return false;
+  if (inputType() !== runInput) rankingEligible = false;
+  elapsed = elapsedBeforeSegment + Math.max(0, now - segmentStarted);
+  if (timeBudget && elapsed >= timeBudget) { elapsed = timeBudget; finishChallenge(false); return false; }
+  updateClock();
+  return true;
+}
+function finishChallenge(success) {
+  if (phase !== 'running' && phase !== 'ready') return;
+  phase = success ? 'finished' : 'timeout'; won = success; gamePlaying = false; neutralizeRemote();
+  const fraction = timeBudget ? Math.max(0, (timeBudget - elapsed) / timeBudget) : 0;
+  const bonus = success ? Math.floor(500 * fraction) : 0;
+  const total = checkpointPoints + (success ? 1000 + bonus : 0);
+  const stars = success ? 1 + (timeBudget && fraction >= .25 ? 1 : 0) + (timeBudget && fraction >= .5 ? 1 : 0) : 0;
+  const best = success && rankingEligible ? saveFinish(total) : false;
+  ui('result-stars').textContent = success ? '★'.repeat(stars) + '☆'.repeat(3 - stars) : '◆';
+  ui('result-stars').setAttribute('aria-label', success ? `${stars} of 3 stars` : 'Attempt complete');
+  ui('win-text').textContent = success ? 'You did it!' : 'A little further each time';
+  ui('result-score').textContent = `${total.toLocaleString()} pts`;
+  ui('result-breakdown').textContent = success ? `${checkpointPoints} checkpoints + 1,000 finish + ${bonus} time bonus` : `${checkpointPoints} checkpoint points earned this attempt`;
+  ui('win-time').textContent = `${COURSES[courseIndex].name} · ${fmtTime(elapsed)} elapsed`;
+  ui('result-message').textContent = success
+    ? `${best ? 'Personal best! ' : ''}You completed the course. ${rankingEligible ? (storageAvailable ? 'Your best result is on the local scoreboard.' : 'Your best result is saved for this page session only.') : 'Practice finish celebrated; this run is not ranked.'}`
+    : `You reached ${ui('route-progress').value}% of the route. Keep going without the clock, retry, or take a break. This attempt is not ranked.`;
+  ui('next-course-btn').hidden = !success; ui('practice-btn').hidden = success;
+  ui('score-value').textContent = total; ui('status').textContent = success ? 'course complete!' : 'time complete · progress counts';
+  ui('timer').classList.toggle('won', success);
+  if (success) { ui('route-progress').value = 100; ui('progress-label').textContent = 'Route complete · 100%'; }
+  updateClock();
+  ui('ready-overlay').hidden = ui('pause-overlay').hidden = true;
+  ui('win-overlay').classList.add('show');
+  ui('confetti').replaceChildren();
+  if (success && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    for (let i = 0; i < 32; i++) {
+      const piece = document.createElement('i');
+      piece.style.left = `${Math.random() * 100}%`; piece.style.animationDelay = `${Math.random() * .5}s`;
+      piece.style.background = ['#7ef7c5', '#ffd58c', '#89bdff'][i % 3]; ui('confetti').appendChild(piece);
+    }
+  }
+  (success ? ui('next-course-btn') : ui('practice-btn')).focus();
+}
+// ── End challenge state ───────────────────────────────────
+
+function checkWin() {
+  const goalX = -BW/2 + (COLS - 0.5) * CELL;
+  const goalZ = -BH/2 + (ROWS - 0.5) * CELL;
+  const dx = bx - goalX, dz = bz - goalZ;
+  return Math.sqrt(dx*dx+dz*dz) < CELL * 0.42;
+}
+
+function fmtTime(ms) {
+  const s = Math.floor(ms / 1000);
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+
+// ── Support rod & gimbal below board ─────────────────────
+const rodMat = new THREE.MeshStandardMaterial({
+  color: 0x4a6a8a, roughness: 0.3, metalness: 0.8
+});
+const jointMat = new THREE.MeshStandardMaterial({
+  color: 0x7a9abb, roughness: 0.2, metalness: 0.9
+});
+
+// Vertical rod
+const rodGeo = new THREE.CylinderGeometry(0.12, 0.12, 7, 16);
+const rod = new THREE.Mesh(rodGeo, rodMat);
+rod.position.set(0, -4.2, 0);
+rod.castShadow = true;
+board.add(rod);
+
+// Ball joint at top of rod (pivot point)
+const jointGeo = new THREE.SphereGeometry(0.28, 20, 20);
+const joint = new THREE.Mesh(jointGeo, jointMat);
+joint.position.set(0, -0.6, 0);
+board.add(joint);
+
+// Horizontal crossbar (like servo arm)
+const crossGeo = new THREE.CylinderGeometry(0.07, 0.07, BW * 0.7, 12);
+const cross = new THREE.Mesh(crossGeo, rodMat);
+cross.rotation.z = Math.PI / 2;
+cross.position.set(0, -1.1, 0);
+cross.castShadow = true;
+board.add(cross);
+
+const cross2Geo = new THREE.CylinderGeometry(0.07, 0.07, BH * 0.7, 12);
+const cross2 = new THREE.Mesh(cross2Geo, rodMat);
+cross2.rotation.x = Math.PI / 2;
+cross2.position.set(0, -1.4, 0);
+cross2.castShadow = true;
+board.add(cross2);
+
+// End caps on crossbars
+[-1, 1].forEach(s => {
+  const capGeo = new THREE.SphereGeometry(0.13, 12, 12);
+  const cap1 = new THREE.Mesh(capGeo, jointMat);
+  cap1.position.set(s * BW * 0.35, -1.1, 0);
+  board.add(cap1);
+  const cap2 = new THREE.Mesh(capGeo.clone(), jointMat);
+  cap2.position.set(0, -1.4, s * BH * 0.35);
+  board.add(cap2);
+});
+
+// Base disc at bottom of rod
+const baseDiscGeo = new THREE.CylinderGeometry(1.1, 1.3, 0.22, 24);
+const baseDisc = new THREE.Mesh(baseDiscGeo, baseMat);
+baseDisc.position.set(0, -7.7, 0);
+baseDisc.castShadow = true;
+board.add(baseDisc);
+const exitLight = new THREE.PointLight(0x5aaaf0, 1.5, 5);
+exitLight.position.set(
+  -BW/2 + (COLS-0.5)*CELL, 1.2, -BH/2 + (ROWS-0.5)*CELL
+);
+board.add(exitLight);
+
+// ── Particle / trail (simple) ─────────────────────────────
+// Background stars
+const starGeo = new THREE.BufferGeometry();
+const starVerts = [];
+for(let i = 0; i < 600; i++) {
+  starVerts.push(
+    (Math.random()-0.5)*80,
+    (Math.random()     )*40 - 5,
+    (Math.random()-0.5)*80
+  );
+}
+starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({
+  color: 0x8aaabb, size: 0.06, transparent: true, opacity: 0.4
+}));
+scene.add(stars);
+
+// ── Init & animate ────────────────────────────────────────
+function initGame() {
+  document.getElementById('win-overlay').classList.remove('show');
+  won = false; elapsed = 0; elapsedBeforeSegment = 0;
+  checkpointPoints = 0; furthestStep = 0;
+  pRoll = pPitch = tRoll = tPitch = 0;
+  board.rotation.set(0,0,0);
+  updateClock();
+  ui('score-value').textContent = '0'; ui('route-progress').value = 0;
+  ui('progress-label').textContent = 'Route progress · 0%';
+  ui('course-label').textContent = `0${courseIndex + 1} · ${COURSES[courseIndex].name}`;
+  ui('checkpoint-message').textContent = 'Collect the three golden rings.';
+  document.getElementById('timer').classList.remove('won');
+  document.getElementById('status').textContent = 'roll the ball to ◆';
+  buildMaze(COURSES[courseIndex].seed);
+  buildBoard();
+  buildRoute();
+  resetBall();
+  applyRemoteTilt();
+}
+
+let lastT = null;
+let exitPulseT = 0;
+
+function animate(ts) {
+  requestAnimationFrame(animate);
+  if(!lastT) lastT = ts;
+  const dt = Math.min((ts - lastT) / 1000, 0.05);
+  lastT = ts;
+  exitPulseT += dt;
+  checkRemoteSignal(performance.now());
+
+  if(tickChallenge(performance.now())) {
+    // Smooth tilt — the ESP32 already filters its own signal, so the
+    // remote path needs far less smoothing here than mouse/touch do.
+    const LERP = remoteConnected ? 0.4 : 0.1;
+    pRoll  += (tRoll  - pRoll)  * LERP;
+    pPitch += (tPitch - pPitch) * LERP;
+
+    // Rotate board
+    board.rotation.z = -pRoll;
+    board.rotation.x =  pPitch;
+
+    // Physics
+    bvx += Math.sin(pRoll)  * GRAV * dt;
+    bvz += Math.sin(pPitch) * GRAV * dt;
+    bvx *= Math.pow(FRICTION, dt*60);
+    bvz *= Math.pow(FRICTION, dt*60);
+    bx  += bvx * dt;
+    bz  += bvz * dt;
+
+    resolveWallPhysics();
+    ballMesh.position.set(bx, BALL_R + 0.01, bz);
+
+    updateProgress();
+
+    // Exit light pulse
+    exitLight.intensity = 1.2 + 0.8 * Math.sin(exitPulseT * 2.5);
+
+    // Win check
+    if(checkWin()) {
+      finishChallenge(true);
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+for (const id of ['course-select', 'mode-select', 'player-name']) ui(id).addEventListener('input', renderLeaderboard);
+ui('remote-panel').addEventListener('toggle', () => { if (ui('remote-panel').open) pauseGame('Adjust your remote, then resume when ready.'); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame('Game paused while this tab was away. Ready to continue?'); });
+loadScores(); renderLeaderboard(); initGame();
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
